@@ -5,15 +5,17 @@ import { authMiddleware } from '@/middleware/auth';
 
 export async function GET(request) {
   try {
-    // Check authentication
     const authResponse = await authMiddleware(request);
-    if (authResponse.status === 401) {
-      return authResponse;
+    if (authResponse.status !== 200) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
     }
 
     await connectDB();
-    
-    const userId = request.user.id;
+
+    const userId = authResponse.user._id;
     const user = await User.findById(userId);
 
     if (!user) {
@@ -23,7 +25,17 @@ export async function GET(request) {
       );
     }
 
-    return NextResponse.json({ user });
+    // Remove sensitive data
+    const userWithoutPassword = {
+      _id: user._id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      profilePicture: user.profilePicture,
+      createdAt: user.createdAt
+    };
+
+    return NextResponse.json({ user: userWithoutPassword });
   } catch (error) {
     console.error('Profile fetch error:', error);
     return NextResponse.json(

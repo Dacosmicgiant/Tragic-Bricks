@@ -30,7 +30,7 @@ export async function POST(request) {
 
     // Create token payload
     const tokenPayload = {
-      id: user._id,
+      _id: user._id,
       email: user.email,
       username: user.username,
       role: user.role
@@ -50,14 +50,13 @@ export async function POST(request) {
     };
 
     return NextResponse.json({
-      message: 'Login successful',
-      user: userWithoutPassword,
-      token
+      token,
+      user: userWithoutPassword
     });
   } catch (error) {
     console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Error logging in' },
+      { error: 'Error during login' },
       { status: 500 }
     );
   }

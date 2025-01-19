@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LocationCard from '@/components/LocationCard';
 import { FaFilter, FaSearch, FaGhost, FaBuilding, FaHistory, FaQuestion, FaPlus } from 'react-icons/fa';
@@ -11,29 +11,32 @@ export default function LocationsPage() {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filters, setFilters] = useState({
-    type: '',
-    sort: '',
-    search: '',
-  });
-  const [showFilters, setShowFilters] = useState(false);
+  const [searchInput, setSearchInput] = useState('');
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { user } = useAuth();
 
+  const currentType = searchParams.get('type') || 'all';
+  const currentSort = searchParams.get('sort') || 'recent';
+
   useEffect(() => {
-    const type = searchParams.get('type');
-    const sort = searchParams.get('sort');
-    if (type) setFilters(prev => ({ ...prev, type }));
-    if (sort) setFilters(prev => ({ ...prev, sort }));
     fetchLocations();
   }, [searchParams]);
 
   const fetchLocations = async () => {
     try {
+      setLoading(true);
       const queryParams = new URLSearchParams();
-      if (filters.type) queryParams.append('type', filters.type);
-      if (filters.sort) queryParams.append('sort', filters.sort);
-      if (filters.search) queryParams.append('search', filters.search);
+      
+      if (currentType && currentType !== 'all') {
+        queryParams.append('type', currentType);
+      }
+      if (currentSort) {
+        queryParams.append('sort', currentSort);
+      }
+      if (searchInput) {
+        queryParams.append('search', searchInput);
+      }
 
       const response = await fetch(`/api/locations?${queryParams.toString()}`);
       const data = await response.json();
@@ -43,6 +46,7 @@ export default function LocationsPage() {
       }
 
       setLocations(data.locations);
+      setError('');
     } catch (error) {
       setError('Failed to fetch locations');
       console.error('Error:', error);
@@ -51,129 +55,126 @@ export default function LocationsPage() {
     }
   };
 
+  const handleTypeChange = (type) => {
+    const params = new URLSearchParams(searchParams);
+    if (type === 'all') {
+      params.delete('type');
+    } else {
+      params.set('type', type);
+    }
+    router.push(`/locations?${params.toString()}`);
+  };
+
+  const handleSortChange = (sort) => {
+    const params = new URLSearchParams(searchParams);
+    if (sort) {
+      params.set('sort', sort);
+    } else {
+      params.delete('sort');
+    }
+    router.push(`/locations?${params.toString()}`);
+  };
+
   const handleSearch = (e) => {
     e.preventDefault();
     fetchLocations();
   };
 
-  const typeIcons = {
-    haunted: FaGhost,
-    abandoned: FaBuilding,
-    historical: FaHistory,
-    mysterious: FaQuestion,
-  };
-
   return (
-    <div className="min-h-screen bg-haunted-dark pt-24">
-      {/* Search and Filter Bar */}
-      <div className="bg-haunted-light border-b border-gray-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <form onSubmit={handleSearch} className="w-full md:w-auto">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={filters.search}
-                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                  placeholder="Search locations..."
-                  className="w-full md:w-96 bg-haunted-dark text-gray-300 pl-10 pr-4 py-2 rounded-md border border-gray-700 focus:outline-none focus:border-accent-teal focus:ring-1 focus:ring-accent-teal"
-                />
-                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              </div>
-            </form>
-
-            <div className="flex items-center gap-4">
-              {user && (
-                <Link
-                  href="/locations/submit"
-                  className="flex items-center gap-2 bg-accent-teal hover:bg-accent-teal/80 text-gray-900 px-4 py-2 rounded-md transition-colors"
-                >
-                  <FaPlus className="w-4 h-4" />
-                  Submit Location
-                </Link>
-              )}
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 text-gray-300 hover:text-accent-teal transition-colors"
-              >
-                <FaFilter />
-                Filters
-              </button>
-            </div>
-          </div>
-
-          {/* Filter Options */}
-          {showFilters && (
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-gray-400 mb-2">Type</label>
-                <select
-                  value={filters.type}
-                  onChange={(e) => {
-                    setFilters(prev => ({ ...prev, type: e.target.value }));
-                    fetchLocations();
-                  }}
-                  className="w-full bg-haunted-dark text-gray-300 px-4 py-2 rounded-md border border-gray-700 focus:outline-none focus:border-accent-teal focus:ring-1 focus:ring-accent-teal"
-                >
-                  <option value="">All Types</option>
-                  <option value="haunted">Haunted</option>
-                  <option value="abandoned">Abandoned</option>
-                  <option value="historical">Historical</option>
-                  <option value="mysterious">Mysterious</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-gray-400 mb-2">Sort By</label>
-                <select
-                  value={filters.sort}
-                  onChange={(e) => {
-                    setFilters(prev => ({ ...prev, sort: e.target.value }));
-                    fetchLocations();
-                  }}
-                  className="w-full bg-haunted-dark text-gray-300 px-4 py-2 rounded-md border border-gray-700 focus:outline-none focus:border-accent-teal focus:ring-1 focus:ring-accent-teal"
-                >
-                  <option value="">Most Relevant</option>
-                  <option value="rating">Highest Rated</option>
-                  <option value="reviews">Most Reviewed</option>
-                  <option value="recent">Recently Added</option>
-                </select>
-              </div>
-            </div>
+    <div className="min-h-screen bg-haunted-dark pt-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-serif text-white">Explore Locations</h1>
+          {user && (
+            <Link
+              href="/locations/submit"
+              className="flex items-center bg-accent-teal hover:bg-accent-teal/80 text-gray-900 px-4 py-2 rounded-md transition-colors"
+            >
+              <FaPlus className="mr-2" />
+              Add Location
+            </Link>
           )}
         </div>
-      </div>
 
-      {/* Location Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Filters */}
+        <div className="bg-haunted-light p-4 rounded-lg mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Search */}
+            <form onSubmit={handleSearch} className="relative">
+              <input
+                type="text"
+                placeholder="Search locations..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-haunted-dark text-white rounded-md border border-gray-700 focus:border-accent-teal focus:ring-1 focus:ring-accent-teal"
+              />
+              <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            </form>
+
+            {/* Type Filter */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => handleTypeChange('all')}
+                className={`px-3 py-1 rounded-md ${
+                  currentType === 'all'
+                    ? 'bg-accent-teal text-gray-900'
+                    : 'bg-haunted-dark text-gray-300 hover:bg-haunted-dark/80'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => handleTypeChange('haunted')}
+                className={`px-3 py-1 rounded-md ${
+                  currentType === 'haunted'
+                    ? 'bg-accent-teal text-gray-900'
+                    : 'bg-haunted-dark text-gray-300 hover:bg-haunted-dark/80'
+                }`}
+              >
+                Haunted
+              </button>
+              <button
+                onClick={() => handleTypeChange('abandoned')}
+                className={`px-3 py-1 rounded-md ${
+                  currentType === 'abandoned'
+                    ? 'bg-accent-teal text-gray-900'
+                    : 'bg-haunted-dark text-gray-300 hover:bg-haunted-dark/80'
+                }`}
+              >
+                Abandoned
+              </button>
+            </div>
+
+            {/* Sort Filter */}
+            <select
+              value={currentSort}
+              onChange={(e) => handleSortChange(e.target.value)}
+              className="bg-haunted-dark text-white rounded-md border border-gray-700 px-3 py-2 focus:border-accent-teal focus:ring-1 focus:ring-accent-teal"
+            >
+              <option value="recent">Most Recent</option>
+              <option value="rating">Highest Rated</option>
+              <option value="reviews">Most Reviewed</option>
+              <option value="oldest">Oldest First</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Locations Grid */}
         {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-pulse text-accent-teal">Loading...</div>
+          <div className="flex justify-center items-center min-h-[400px]">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-accent-teal"></div>
           </div>
         ) : error ? (
-          <div className="text-center py-12 text-accent-rust">{error}</div>
+          <div className="text-center py-8">
+            <p className="text-red-400">{error}</p>
+          </div>
         ) : locations.length === 0 ? (
-          <div className="text-center py-12">
-            <FaGhost className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-300 mb-2">No locations found</h3>
-            <p className="text-gray-400 mb-4">
-              Try adjusting your filters or search terms
-            </p>
-            {!user && (
-              <p className="text-gray-400">
-                <Link href="/register" className="text-accent-teal hover:text-accent-teal/80 transition-colors">
-                  Register
-                </Link>{' '}
-                or{' '}
-                <Link href="/login" className="text-accent-teal hover:text-accent-teal/80 transition-colors">
-                  Log in
-                </Link>{' '}
-                to submit locations
-              </p>
-            )}
+          <div className="text-center py-8">
+            <p className="text-gray-400">No locations found</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {locations.map((location) => (
               <LocationCard key={location._id} location={location} />
             ))}

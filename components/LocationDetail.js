@@ -1,30 +1,30 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { FaGhost, FaMapMarkerAlt, FaStar, FaClock, FaCamera } from 'react-icons/fa';
+import { FaGhost, FaMapMarkerAlt, FaStar, FaClock } from 'react-icons/fa';
 import ReviewForm from '@/components/ReviewForm';
 import { useAuth } from '@/context/AuthContext';
+import { use } from 'react';
 
-export default function LocationDetail() {
-  const params = useParams();
+export default function LocationDetail({ params }) {
+  const id = use(Promise.resolve(params.id));
   const [activeImage, setActiveImage] = useState(0);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [location, setLocation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { user, token } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
-    if (params?.id) {
-      fetchLocation(params.id);
-    }
-  }, [params?.id]);
+    fetchLocation();
+  }, [id]);
 
-  const fetchLocation = async (locationId) => {
+  const fetchLocation = async () => {
     try {
-      const response = await fetch(`/api/locations/${locationId}`);
+      const response = await fetch(`/api/locations/${id}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -39,9 +39,44 @@ export default function LocationDetail() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-300">Loading location details...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
+        </div>
+      </div>
+    );
+  }
+
+  if (!location) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-yellow-50 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+          Location not found
+        </div>
+      </div>
+    );
+  }
+
+  const handleImageClick = (index) => {
+    setActiveImage(index);
+  };
+
   const handleReviewSubmit = async (reviewData) => {
     try {
-      const response = await fetch(`/api/locations/${params.id}/reviews`, {
+      const response = await fetch(`/api/locations/${id}/reviews`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -53,51 +88,18 @@ export default function LocationDetail() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to submit review');
+        throw new Error(data.error || 'Error submitting review');
       }
 
-      // Refresh location data to show new review
-      fetchLocation(params.id);
+      // Update location with new review
+      setLocation(prevLocation => ({
+        ...prevLocation,
+        reviews: [...prevLocation.reviews, data.review]
+      }));
       setShowReviewForm(false);
     } catch (error) {
-      console.error('Error submitting review:', error);
       setError(error.message);
     }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-haunted-dark">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-accent-teal mx-auto"></div>
-          <p className="mt-4 text-gray-300">Loading location details...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-haunted-dark">
-        <div className="text-center text-gray-300">
-          <p className="text-xl">Error: {error}</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!location) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-haunted-dark">
-        <div className="text-center text-gray-300">
-          <p className="text-xl">Location not found</p>
-        </div>
-      </div>
-    );
-  }
-
-  const handleImageClick = (index) => {
-    setActiveImage(index);
   };
 
   return (

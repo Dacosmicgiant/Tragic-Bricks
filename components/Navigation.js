@@ -39,28 +39,28 @@ export default function Navigation() {
             <div className="hidden md:block ml-10">
               <div className="flex items-baseline space-x-4">
                 <Link
-                  href="/locations?type=abandoned"
+                  href="/about"
                   className="text-gray-300 hover:text-accent-teal px-3 py-2 rounded-md text-sm transition-colors"
                 >
-                  Abandoned
+                  About Us
                 </Link>
                 <Link
-                  href="/locations?type=haunted"
+                  href="/locations"
                   className="text-gray-300 hover:text-accent-teal px-3 py-2 rounded-md text-sm transition-colors"
                 >
-                  Haunted
+                  Locations
                 </Link>
                 <Link
-                  href="/locations?sort=reviews"
+                  href="/report"
                   className="text-gray-300 hover:text-accent-teal px-3 py-2 rounded-md text-sm transition-colors"
                 >
-                  Most Reviewed
+                  Report
                 </Link>
                 <Link
-                  href="/locations?sort=recent"
+                  href="/contact"
                   className="text-gray-300 hover:text-accent-teal px-3 py-2 rounded-md text-sm transition-colors"
                 >
-                  Recently Added
+                  Contact
                 </Link>
               </div>
             </div>
@@ -150,30 +150,29 @@ export default function Navigation() {
       <div className={`md:hidden ${isMenuOpen ? 'block' : 'hidden'}`}>
         <div className="px-2 pt-2 pb-3 space-y-1 bg-haunted-light">
           <Link
-            href="/locations?type=abandoned"
+            href="/about"
             className="text-gray-300 hover:text-accent-teal block px-3 py-2 rounded-md text-base"
           >
-            Abandoned
+            About Us
           </Link>
           <Link
-            href="/locations?type=haunted"
+            href="/locations"
             className="text-gray-300 hover:text-accent-teal block px-3 py-2 rounded-md text-base"
           >
-            Haunted
+            Locations
           </Link>
           <Link
-            href="/locations?sort=reviews"
+            href="/report"
             className="text-gray-300 hover:text-accent-teal block px-3 py-2 rounded-md text-base"
           >
-            Most Reviewed
+            Report
           </Link>
           <Link
-            href="/locations?sort=recent"
+            href="/contact"
             className="text-gray-300 hover:text-accent-teal block px-3 py-2 rounded-md text-base"
           >
-            Recently Added
+            Contact
           </Link>
-
           {user ? (
             <>
               <Link

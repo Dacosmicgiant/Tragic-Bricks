@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
-import cloudinary from '@/lib/cloudinary';
+import { uploadImage } from '@/lib/cloudinary';
 import { authMiddleware } from '@/middleware/auth';
+
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
 
 export async function POST(request) {
   try {
     // Check authentication
-    const authResponse = await authMiddleware(request);
+    const authResponse = await authMiddleware(request.clone());
     if (authResponse.status === 401) {
       return authResponse;
     }
@@ -20,27 +26,20 @@ export async function POST(request) {
       );
     }
 
-    // Convert file to buffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      return NextResponse.json(
+        { error: 'Invalid file type. Only JPEG, PNG, and WebP images are allowed.' },
+        { status: 400 }
+      );
+    }
 
     // Upload to Cloudinary
-    const result = await new Promise((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
-        {
-          resource_type: 'auto',
-          folder: 'tragic-bricks',
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      ).end(buffer);
-    });
+    const imageUrl = await uploadImage(file);
 
     return NextResponse.json({
-      url: result.secure_url,
-      publicId: result.public_id
+      url: imageUrl
     });
   } catch (error) {
     console.error('Upload error:', error);

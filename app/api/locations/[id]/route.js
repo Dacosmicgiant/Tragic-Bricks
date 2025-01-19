@@ -4,13 +4,28 @@ import Location from '@/models/Location';
 import { authMiddleware } from '@/middleware/auth';
 
 // Get specific location
-export async function GET(request, { params }) {
+export async function GET(request, context) {
   try {
     await connectDB();
-    
-    const location = await Location.findById(params.id)
+
+    const id = context.params.id;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Location ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const location = await Location.findById(id)
       .populate('discoveredBy', 'username')
-      .populate('reviews.user', 'username');
+      .populate({
+        path: 'reviews',
+        populate: {
+          path: 'user',
+          select: 'username'
+        }
+      });
 
     if (!location) {
       return NextResponse.json(
@@ -30,19 +45,38 @@ export async function GET(request, { params }) {
 }
 
 // Add review to location
-export async function POST(request, { params }) {
+export async function POST(request, context) {
   try {
-    const authResponse = await authMiddleware(request);
-    if (authResponse.status === 401) {
-      return authResponse;
+    const authResponse = await authMiddleware(request.clone());
+    if (authResponse.status !== 200) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
     }
 
     await connectDB();
     
+    const { id } = context.params;
+    
     const { rating, comment, images = [] } = await request.json();
-    const userId = request.user.id;
 
-    const location = await Location.findById(params.id);
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Location ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate required fields
+    if (!rating || !comment) {
+      return NextResponse.json(
+        { error: 'Rating and comment are required' },
+        { status: 400 }
+      );
+    }
+
+    const location = await Location.findById(id);
     if (!location) {
       return NextResponse.json(
         { error: 'Location not found' },
@@ -50,38 +84,30 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Check if user has already reviewed
-    const existingReview = location.reviews.find(
-      review => review.user.toString() === userId
-    );
-    if (existingReview) {
-      return NextResponse.json(
-        { error: 'You have already reviewed this location' },
-        { status: 400 }
-      );
-    }
-
-    location.reviews.push({
-      user: userId,
+    // Create new review
+    const review = {
+      user: authResponse.user._id,
       rating,
       comment,
       images
-    });
+    };
 
-    // Recalculate average rating
-    location.averageRating = location.reviews.reduce((acc, review) => acc + review.rating, 0) / location.reviews.length;
-
+    // Add review to location
+    location.reviews.push(review);
     await location.save();
-    await location.populate('reviews.user', 'username');
 
-    return NextResponse.json(
-      { message: 'Review added successfully', location },
-      { status: 201 }
-    );
+    // Populate user info for the new review
+    await location.populate('reviews.user', 'username');
+    const newReview = location.reviews[location.reviews.length - 1];
+
+    return NextResponse.json({ 
+      message: 'Review added successfully',
+      review: newReview
+    });
   } catch (error) {
     console.error('Error adding review:', error);
     return NextResponse.json(
-      { error: 'Error adding review' },
+      { error: error.message || 'Error adding review' },
       { status: 500 }
     );
   }

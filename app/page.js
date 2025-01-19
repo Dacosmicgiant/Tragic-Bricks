@@ -1,22 +1,46 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import LocationCard from '@/components/LocationCard';
 import { FaGhost, FaBuilding, FaStar, FaClock } from 'react-icons/fa';
 import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 
 export default function Home() {
+  const [locations, setLocations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const searchParams = useSearchParams();
+  const type = searchParams.get('type') || 'all';
+
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`/api/locations?type=${type}`);
+        const data = await response.json();
+        setLocations(data.locations);
+      } catch (error) {
+        console.error('Error fetching locations:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLocations();
+  }, [type]);
+
   return (
     <div className="min-h-screen bg-haunted-dark">
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center">
         {/* Background Image with Overlay */}
         <div className="absolute inset-0 z-0">
-          <Image
-            src="/images/hero-bg.jpg"
-            alt="Haunted mansion"
-            fill
-            className="object-cover"
-            priority
+          <div 
+            className="absolute inset-0 bg-cover bg-center"
+            style={{
+              backgroundImage: "url('/images/hero.jpg')",
+              filter: "brightness(0.4)"
+            }}
           />
           <div className="absolute inset-0 bg-gradient-to-b from-haunted-dark/90 via-haunted-dark/70 to-haunted-dark"></div>
         </div>
@@ -67,8 +91,8 @@ export default function Home() {
           <h2 className="font-serif text-3xl text-white mb-12 text-center">Explore by Category</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {[
-              { icon: FaGhost, title: 'Haunted', count: '157+', link: '/locations?type=haunted' },
-              { icon: FaBuilding, title: 'Abandoned', count: '243+', link: '/locations?type=abandoned' },
+              { icon: FaGhost, title: 'Haunted', count: '157+', link: '/?type=haunted' },
+              { icon: FaBuilding, title: 'Abandoned', count: '243+', link: '/?type=abandoned' },
               { icon: FaStar, title: 'Most Reviewed', count: 'Top 50', link: '/locations?sort=reviews' },
               { icon: FaClock, title: 'Recently Added', count: 'New', link: '/locations?sort=recent' },
             ].map((category) => (
@@ -89,10 +113,27 @@ export default function Home() {
       {/* Featured Locations */}
       <section className="py-16 bg-haunted-dark">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="font-serif text-3xl text-white mb-12 text-center">Featured Locations</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Location cards will be dynamically populated here */}
-          </div>
+          <h2 className="font-serif text-3xl text-white mb-12 text-center">
+            {type === 'all' ? 'Featured Locations' : 
+             type === 'haunted' ? 'Haunted Locations' :
+             type === 'abandoned' ? 'Abandoned Places' : 'Featured Locations'}
+          </h2>
+          
+          {loading ? (
+            <div className="flex justify-center items-center min-h-[300px]">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-accent-teal"></div>
+            </div>
+          ) : locations.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {locations.map((location) => (
+                <LocationCard key={location._id} location={location} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center text-gray-400 py-12">
+              No locations found. Be the first to submit one!
+            </div>
+          )}
         </div>
       </section>
 

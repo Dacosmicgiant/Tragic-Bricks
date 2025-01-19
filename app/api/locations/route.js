@@ -10,22 +10,49 @@ export async function GET(request) {
     
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
-    const query = searchParams.get('query');
+    const sort = searchParams.get('sort');
+    const query = searchParams.get('search');
     
     let filter = {};
-    if (type) {
-      filter.type = type;
+    let sortOptions = { createdAt: -1 }; // Default sort by newest
+
+    // Apply type filter
+    if (type && type !== 'all') {
+      filter.type = type.toLowerCase();
     }
+
+    // Apply search filter
     if (query) {
       filter.$or = [
         { name: { $regex: query, $options: 'i' } },
-        { description: { $regex: query, $options: 'i' } }
+        { description: { $regex: query, $options: 'i' } },
+        { address: { $regex: query, $options: 'i' } }
       ];
+    }
+
+    // Apply sort
+    if (sort) {
+      switch (sort) {
+        case 'reviews':
+          sortOptions = { 'reviews.length': -1, averageRating: -1 };
+          break;
+        case 'rating':
+          sortOptions = { averageRating: -1 };
+          break;
+        case 'recent':
+          sortOptions = { createdAt: -1 };
+          break;
+        case 'oldest':
+          sortOptions = { createdAt: 1 };
+          break;
+        default:
+          sortOptions = { createdAt: -1 };
+      }
     }
 
     const locations = await Location.find(filter)
       .populate('discoveredBy', 'username')
-      .sort({ createdAt: -1 });
+      .sort(sortOptions);
 
     return NextResponse.json({ locations });
   } catch (error) {
@@ -40,23 +67,45 @@ export async function GET(request) {
 // Create new location
 export async function POST(request) {
   try {
-    const authResponse = await authMiddleware(request);
-    if (authResponse.status === 401) {
-      return authResponse;
+    const user = await authMiddleware(request.clone());
+    
+    if (!user || !user._id) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
     }
 
     await connectDB();
     
     const locationData = await request.json();
-    locationData.discoveredBy = request.user.id;
 
-    const location = await Location.create(locationData);
+    // Validate required fields
+    const requiredFields = ['name', 'description', 'type', 'address', 'coordinates'];
+    for (const field of requiredFields) {
+      if (!locationData[field]) {
+        return NextResponse.json(
+          { error: `${field} is required` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Create location with user ID
+    const location = new Location({
+      ...locationData,
+      discoveredBy: user._id,
+      type: locationData.type.toLowerCase(),
+      reviews: [],
+      averageRating: 0
+    });
+
+    await location.save();
+
+    // Populate user details before sending response
     await location.populate('discoveredBy', 'username');
 
-    return NextResponse.json(
-      { message: 'Location created successfully', location },
-      { status: 201 }
-    );
+    return NextResponse.json({ location }, { status: 201 });
   } catch (error) {
     console.error('Error creating location:', error);
     return NextResponse.json(
