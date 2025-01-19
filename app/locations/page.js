@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import LocationCard from '@/components/LocationCard';
 import { FaFilter, FaSearch, FaGhost, FaBuilding, FaHistory, FaQuestion, FaPlus } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
 
-export default function LocationsPage() {
+// Create a separate component for the content that uses useSearchParams
+function LocationContent() {
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -182,5 +183,14 @@ export default function LocationsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Main page component
+export default function LocationsPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LocationContent />
+    </Suspense>
   );
 }
