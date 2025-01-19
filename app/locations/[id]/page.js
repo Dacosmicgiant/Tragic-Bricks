@@ -1,17 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import Image from 'next/image';
+import { FaGhost, FaMapMarkerAlt, FaStar, FaClock, FaCamera } from 'react-icons/fa';
+import ReviewForm from '@/components/ReviewForm';
 
 export default function LocationDetail({ params }) {
+  const [activeImage, setActiveImage] = useState(0);
+  const [showReviewForm, setShowReviewForm] = useState(false);
   const [location, setLocation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '', images: [] });
-  const [uploadingImages, setUploadingImages] = useState(false);
-  const [previewImages, setPreviewImages] = useState([]);
   const { user } = useAuth();
   const router = useRouter();
 
@@ -36,92 +35,6 @@ export default function LocationDetail({ params }) {
     }
   };
 
-  const uploadImage = async (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const token = localStorage.getItem('token');
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
-      body: formData
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to upload image');
-    }
-
-    const data = await response.json();
-    return data.url;
-  };
-
-  const handleImageChange = async (e) => {
-    const files = Array.from(e.target.files);
-    setUploadingImages(true);
-    setError('');
-
-    try {
-      // Create preview URLs
-      const previews = files.map(file => URL.createObjectURL(file));
-      setPreviewImages(previews);
-
-      // Upload images to Cloudinary
-      const uploadedUrls = await Promise.all(files.map(file => uploadImage(file)));
-      
-      setReviewForm(prev => ({
-        ...prev,
-        images: [...prev.images, ...uploadedUrls]
-      }));
-    } catch (error) {
-      setError('Error uploading images. Please try again.');
-      console.error('Image upload error:', error);
-    } finally {
-      setUploadingImages(false);
-    }
-  };
-
-  const removeImage = (index) => {
-    setReviewForm(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }));
-    setPreviewImages(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleReviewSubmit = async (e) => {
-    e.preventDefault();
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/locations/${params.id}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(reviewForm)
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Error submitting review');
-      }
-
-      setLocation(data.location);
-      setReviewForm({ rating: 5, comment: '', images: [] });
-      setPreviewImages([]);
-    } catch (error) {
-      setError(error.message);
-    }
-  };
-
   if (loading) {
     return <div className="text-center py-10">Loading...</div>;
   }
@@ -141,205 +54,172 @@ export default function LocationDetail({ params }) {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 p-6">
-          <div>
-            {location.images && location.images.length > 0 ? (
-              <div className="aspect-w-16 aspect-h-9">
-                <Image
-                  src={location.images[0]}
-                  alt={location.name}
-                  width={800}
-                  height={600}
-                  className="object-cover w-full h-96 rounded-lg"
-                />
-              </div>
-            ) : (
-              <div className="bg-gray-200 h-96 rounded-lg flex items-center justify-center">
-                No image available
-              </div>
-            )}
-            {location.images && location.images.length > 1 && (
-              <div className="mt-4 grid grid-cols-4 gap-2">
-                {location.images.slice(1).map((image, index) => (
-                  <Image
-                    key={index}
-                    src={image}
-                    alt={`${location.name} ${index + 2}`}
-                    width={200}
-                    height={200}
-                    className="object-cover w-full h-24 rounded-lg"
-                  />
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-3xl font-bold">{location.name}</h1>
-              <span className="px-3 py-1 text-sm rounded-full bg-gray-100 text-gray-800">
+    <div className="min-h-screen bg-haunted-dark pt-16">
+      {/* Hero Section */}
+      <div className="relative h-[60vh] overflow-hidden">
+        <Image
+          src={location.images[activeImage]}
+          alt={location.name}
+          fill
+          className="object-cover"
+        />
+        <div className="absolute inset-0 bg-black/50" />
+        <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/80 to-transparent">
+          <div className="max-w-7xl mx-auto">
+            <h1 className="font-serif text-4xl md:text-5xl text-white mb-4">{location.name}</h1>
+            <div className="flex flex-wrap items-center gap-4 text-gray-300">
+              <span className="flex items-center">
+                <FaGhost className="mr-2" />
                 {location.type}
               </span>
+              <span className="flex items-center">
+                <FaMapMarkerAlt className="mr-2" />
+                {location.address.city}, {location.address.state}
+              </span>
+              <span className="flex items-center">
+                <FaStar className="mr-2 text-accent-teal" />
+                {location.averageRating.toFixed(1)}
+              </span>
             </div>
-
-            <p className="text-gray-600 mb-4">{location.description}</p>
-
-            <div className="border-t border-gray-200 pt-4">
-              <h2 className="text-xl font-semibold mb-2">Location Details</h2>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-gray-500">Address</p>
-                  <p>{location.address.street}</p>
-                  <p>{location.address.city}, {location.address.state}</p>
-                  <p>{location.address.country}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500">Coordinates</p>
-                  <p>Lat: {location.coordinates.latitude}</p>
-                  <p>Long: {location.coordinates.longitude}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t border-gray-200 pt-4 mt-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">Rating</h2>
-                <div className="flex items-center">
-                  <span className="text-2xl text-yellow-400 mr-2">★</span>
-                  <span className="text-xl">{location.averageRating.toFixed(1)}</span>
-                </div>
-              </div>
-              <p className="text-gray-500">
-                Discovered by {location.discoveredBy.username}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t border-gray-200 p-6">
-          <h2 className="text-2xl font-semibold mb-6">Reviews</h2>
-          
-          {user && (
-            <form onSubmit={handleReviewSubmit} className="mb-8">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Rating</label>
-                  <select
-                    value={reviewForm.rating}
-                    onChange={(e) => setReviewForm(prev => ({ ...prev, rating: Number(e.target.value) }))}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  >
-                    {[5, 4, 3, 2, 1].map(num => (
-                      <option key={num} value={num}>{num} stars</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Comment</label>
-                  <textarea
-                    value={reviewForm.comment}
-                    onChange={(e) => setReviewForm(prev => ({ ...prev, comment: e.target.value }))}
-                    required
-                    rows={4}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Images</label>
-                  <input
-                    type="file"
-                    multiple
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="mt-1 block w-full"
-                    disabled={uploadingImages}
-                  />
-                  {uploadingImages && (
-                    <p className="text-sm text-gray-500 mt-2">Uploading images...</p>
-                  )}
-                  {previewImages.length > 0 && (
-                    <div className="mt-4 grid grid-cols-3 gap-4">
-                      {previewImages.map((preview, index) => (
-                        <div key={index} className="relative">
-                          <Image
-                            src={preview}
-                            alt={`Preview ${index + 1}`}
-                            width={200}
-                            height={200}
-                            className="rounded-lg object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeImage(index)}
-                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                            </svg>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={uploadingImages}
-                  className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                >
-                  Submit Review
-                </button>
-              </div>
-            </form>
-          )}
-
-          <div className="space-y-6">
-            {location.reviews.map((review, index) => (
-              <div key={index} className="border-b border-gray-200 pb-6 last:border-0">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center">
-                    <span className="font-medium">{review.user.username}</span>
-                    <span className="mx-2">•</span>
-                    <div className="flex items-center">
-                      <span className="text-yellow-400 mr-1">★</span>
-                      <span>{review.rating}</span>
-                    </div>
-                  </div>
-                  <span className="text-gray-500 text-sm">
-                    {new Date(review.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                <p className="text-gray-600">{review.comment}</p>
-                {review.images && review.images.length > 0 && (
-                  <div className="mt-2 grid grid-cols-4 gap-2">
-                    {review.images.map((image, imgIndex) => (
-                      <Image
-                        key={imgIndex}
-                        src={image}
-                        alt={`Review image ${imgIndex + 1}`}
-                        width={200}
-                        height={200}
-                        className="rounded-lg object-cover w-full h-24"
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {location.reviews.length === 0 && (
-              <div className="text-center text-gray-500">
-                No reviews yet. {user ? 'Be the first to review!' : 'Sign in to leave a review!'}
-              </div>
-            )}
           </div>
         </div>
       </div>
+
+      {/* Image Gallery */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-10">
+        <div className="flex gap-2 overflow-x-auto pb-4">
+          {location.images.map((image, index) => (
+            <button
+              key={index}
+              onClick={() => setActiveImage(index)}
+              className={`relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden ${
+                index === activeImage ? 'ring-2 ring-accent-teal' : ''
+              }`}
+            >
+              <Image
+                src={image}
+                alt={`${location.name} ${index + 1}`}
+                fill
+                className="object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+          {/* Main Content */}
+          <div className="lg:col-span-2">
+            <div className="bg-haunted-light rounded-lg p-6 mb-8">
+              <h2 className="font-serif text-2xl text-white mb-4">About this Location</h2>
+              <p className="text-gray-300">{location.description}</p>
+            </div>
+
+            {/* Reviews Section */}
+            <div className="bg-haunted-light rounded-lg p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="font-serif text-2xl text-white">Reviews</h2>
+                {user && (
+                  <button
+                    onClick={() => setShowReviewForm(true)}
+                    className="bg-accent-teal hover:bg-accent-teal/80 text-gray-900 px-4 py-2 rounded-md transition-colors"
+                  >
+                    Write a Review
+                  </button>
+                )}
+              </div>
+
+              {/* Review List */}
+              <div className="space-y-6">
+                {location.reviews.map((review, index) => (
+                  <div key={index} className="border-b border-gray-700 pb-6 last:border-0">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center">
+                        <Image
+                          src={review.user.image}
+                          alt={review.user.name}
+                          width={40}
+                          height={40}
+                          className="rounded-full"
+                        />
+                        <div className="ml-3">
+                          <h4 className="text-white">{review.user.name}</h4>
+                          <div className="flex items-center">
+                            <div className="flex text-accent-teal">
+                              {[...Array(review.rating)].map((_, i) => (
+                                <FaStar key={i} className="w-4 h-4" />
+                              ))}
+                            </div>
+                            <span className="ml-2 text-gray-400 text-sm">
+                              <FaClock className="inline mr-1" />
+                              {new Date(review.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-gray-300 mb-4">{review.comment}</p>
+                    {review.images?.length > 0 && (
+                      <div className="flex gap-2 overflow-x-auto">
+                        {review.images.map((image, imgIndex) => (
+                          <div key={imgIndex} className="relative w-24 h-24 flex-shrink-0">
+                            <Image
+                              src={image}
+                              alt={`Review image ${imgIndex + 1}`}
+                              fill
+                              className="object-cover rounded-lg"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="bg-haunted-light rounded-lg p-6 sticky top-24">
+              <h3 className="font-serif text-xl text-white mb-4">Location Details</h3>
+              <div className="space-y-4 text-gray-300">
+                <div className="flex items-center">
+                  <FaMapMarkerAlt className="w-5 h-5 mr-3 text-accent-teal" />
+                  <span>{location.address.street}, {location.address.city}, {location.address.state}</span>
+                </div>
+                <div className="flex items-center">
+                  <FaGhost className="w-5 h-5 mr-3 text-accent-teal" />
+                  <span>{location.type}</span>
+                </div>
+                <div className="flex items-center">
+                  <FaCamera className="w-5 h-5 mr-3 text-accent-teal" />
+                  <span>{location.images.length} Photos</span>
+                </div>
+              </div>
+              <div className="mt-6 pt-6 border-t border-gray-700">
+                <button
+                  onClick={() => window.open(`https://maps.google.com/?q=${location.address.street}+${location.address.city}+${location.address.state}`, '_blank')}
+                  className="w-full bg-accent-teal hover:bg-accent-teal/80 text-gray-900 px-4 py-2 rounded-md transition-colors"
+                >
+                  View on Map
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Review Form Modal */}
+      {showReviewForm && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div className="bg-haunted-light rounded-lg p-6 max-w-2xl w-full mx-4">
+            <ReviewForm locationId={location._id} onClose={() => setShowReviewForm(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

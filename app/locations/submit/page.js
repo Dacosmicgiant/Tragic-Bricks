@@ -1,103 +1,84 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/context/AuthContext';
+import { FaMapMarkerAlt, FaCamera, FaTimes, FaGhost } from 'react-icons/fa';
 import Image from 'next/image';
+import { useAuth } from '@/context/AuthContext';
 
 export default function SubmitLocation() {
-  const [formData, setFormData] = useState({
-    name: '',
-    description: '',
-    type: 'abandoned',
-    address: {
-      street: '',
-      city: '',
-      state: '',
-      country: ''
-    },
-    coordinates: {
-      latitude: '',
-      longitude: ''
-    },
-    images: []
-  });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [uploadingImages, setUploadingImages] = useState(false);
-  const [previewImages, setPreviewImages] = useState([]);
   const router = useRouter();
   const { user } = useAuth();
+  const [formData, setFormData] = useState({
+    name: '',
+    type: 'haunted',
+    description: '',
+    street: '',
+    city: '',
+    state: '',
+    country: '',
+    images: [],
+  });
+  const [previewImages, setPreviewImages] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    if (name.includes('.')) {
-      const [parent, child] = name.split('.');
-      setFormData(prev => ({
-        ...prev,
-        [parent]: {
-          ...prev[parent],
-          [child]: value
-        }
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
+  useEffect(() => {
+    if (!user) {
+      router.push('/register?redirect=/locations/submit');
     }
-  };
+  }, [user]);
 
-  const uploadImage = async (file) => {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const token = localStorage.getItem('token');
-    const response = await fetch('/api/upload', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
-      body: formData
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to upload image');
-    }
-
-    const data = await response.json();
-    return data.url;
-  };
+  if (!user) {
+    return null;
+  }
 
   const handleImageChange = async (e) => {
     const files = Array.from(e.target.files);
-    setUploadingImages(true);
+    setUploading(true);
     setError('');
 
     try {
       // Create preview URLs
       const previews = files.map(file => URL.createObjectURL(file));
-      setPreviewImages(previews);
+      setPreviewImages(prev => [...prev, ...previews]);
 
       // Upload images to Cloudinary
-      const uploadedUrls = await Promise.all(files.map(file => uploadImage(file)));
-      
+      const uploadedUrls = await Promise.all(
+        files.map(async (file) => {
+          const formData = new FormData();
+          formData.append('file', file);
+
+          const response = await fetch('/api/upload', {
+            method: 'POST',
+            body: formData,
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to upload image');
+          }
+
+          const data = await response.json();
+          return data.url;
+        })
+      );
+
       setFormData(prev => ({
         ...prev,
-        images: [...prev.images, ...uploadedUrls]
+        images: [...prev.images, ...uploadedUrls],
       }));
     } catch (error) {
       setError('Error uploading images. Please try again.');
       console.error('Image upload error:', error);
     } finally {
-      setUploadingImages(false);
+      setUploading(false);
     }
   };
 
   const removeImage = (index) => {
     setFormData(prev => ({
       ...prev,
-      images: prev.images.filter((_, i) => i !== index)
+      images: prev.images.filter((_, i) => i !== index),
     }));
     setPreviewImages(prev => prev.filter((_, i) => i !== index));
   };
@@ -105,208 +86,198 @@ export default function SubmitLocation() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch('/api/locations', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
-      
       if (!response.ok) {
-        throw new Error(data.error || 'Error submitting location');
+        throw new Error('Failed to submit location');
       }
 
-      router.push('/locations');
+      const data = await response.json();
+      router.push(`/locations/${data.location._id}`);
     } catch (error) {
-      setError(error.message);
-    } finally {
-      setLoading(false);
+      setError('Failed to submit location. Please try again.');
+      console.error('Location submission error:', error);
     }
   };
 
-  if (!user) {
-    router.push('/login');
-    return null;
-  }
-
   return (
-    <div className="max-w-2xl mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Submit a New Location</h1>
-
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {error && (
-          <div className="bg-red-50 border border-red-400 text-red-700 px-4 py-3 rounded">
-            {error}
+    <div className="min-h-screen bg-haunted-dark pt-24 pb-12">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-haunted-light rounded-lg p-6 md:p-8">
+          <div className="flex items-center gap-3 mb-8">
+            <FaGhost className="w-8 h-8 text-accent-teal" />
+            <h1 className="font-serif text-3xl text-white">Submit a Location</h1>
           </div>
-        )}
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Name</label>
-          <input
-            type="text"
-            name="name"
-            required
-            value={formData.name}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          />
-        </div>
+          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Basic Information */}
+            <div className="space-y-6">
+              <div>
+                <label className="block text-gray-300 mb-2">Location Name</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  required
+                  className="w-full bg-haunted-dark text-gray-300 rounded-md border border-gray-700 p-3 focus:outline-none focus:border-accent-teal focus:ring-1 focus:ring-accent-teal"
+                  placeholder="Enter location name"
+                />
+              </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Description</label>
-          <textarea
-            name="description"
-            required
-            value={formData.description}
-            onChange={handleChange}
-            rows={4}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          />
-        </div>
+              <div>
+                <label className="block text-gray-300 mb-2">Type</label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
+                  className="w-full bg-haunted-dark text-gray-300 rounded-md border border-gray-700 p-3 focus:outline-none focus:border-accent-teal focus:ring-1 focus:ring-accent-teal"
+                >
+                  <option value="haunted">Haunted</option>
+                  <option value="abandoned">Abandoned</option>
+                  <option value="historical">Historical</option>
+                  <option value="mysterious">Mysterious</option>
+                </select>
+              </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Type</label>
-          <select
-            name="type"
-            value={formData.type}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-          >
-            <option value="abandoned">Abandoned</option>
-            <option value="haunted">Haunted</option>
-            <option value="unknown">Unknown</option>
-          </select>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Street</label>
-            <input
-              type="text"
-              name="address.street"
-              required
-              value={formData.address.street}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">City</label>
-            <input
-              type="text"
-              name="address.city"
-              required
-              value={formData.address.city}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">State</label>
-            <input
-              type="text"
-              name="address.state"
-              required
-              value={formData.address.state}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Country</label>
-            <input
-              type="text"
-              name="address.country"
-              required
-              value={formData.address.country}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Latitude</label>
-            <input
-              type="number"
-              step="any"
-              name="coordinates.latitude"
-              required
-              value={formData.coordinates.latitude}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Longitude</label>
-            <input
-              type="number"
-              step="any"
-              name="coordinates.longitude"
-              required
-              value={formData.coordinates.longitude}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Images</label>
-          <input
-            type="file"
-            multiple
-            accept="image/*"
-            onChange={handleImageChange}
-            className="mt-1 block w-full"
-            disabled={uploadingImages}
-          />
-          {uploadingImages && (
-            <p className="text-sm text-gray-500 mt-2">Uploading images...</p>
-          )}
-          {previewImages.length > 0 && (
-            <div className="mt-4 grid grid-cols-3 gap-4">
-              {previewImages.map((preview, index) => (
-                <div key={index} className="relative">
-                  <Image
-                    src={preview}
-                    alt={`Preview ${index + 1}`}
-                    width={200}
-                    height={200}
-                    className="rounded-lg object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeImage(index)}
-                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
+              <div>
+                <label className="block text-gray-300 mb-2">Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  required
+                  rows={4}
+                  className="w-full bg-haunted-dark text-gray-300 rounded-md border border-gray-700 p-3 focus:outline-none focus:border-accent-teal focus:ring-1 focus:ring-accent-teal"
+                  placeholder="Describe the location and its history..."
+                />
+              </div>
             </div>
-          )}
-        </div>
 
-        <button
-          type="submit"
-          disabled={loading || uploadingImages}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-        >
-          {loading ? 'Submitting...' : 'Submit Location'}
-        </button>
-      </form>
+            {/* Address */}
+            <div className="space-y-6">
+              <h2 className="font-serif text-xl text-white">Location Address</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-gray-300 mb-2">Street Address</label>
+                  <input
+                    type="text"
+                    value={formData.street}
+                    onChange={(e) => setFormData(prev => ({ ...prev, street: e.target.value }))}
+                    required
+                    className="w-full bg-haunted-dark text-gray-300 rounded-md border border-gray-700 p-3 focus:outline-none focus:border-accent-teal focus:ring-1 focus:ring-accent-teal"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-300 mb-2">City</label>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                    required
+                    className="w-full bg-haunted-dark text-gray-300 rounded-md border border-gray-700 p-3 focus:outline-none focus:border-accent-teal focus:ring-1 focus:ring-accent-teal"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-300 mb-2">State/Province</label>
+                  <input
+                    type="text"
+                    value={formData.state}
+                    onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
+                    required
+                    className="w-full bg-haunted-dark text-gray-300 rounded-md border border-gray-700 p-3 focus:outline-none focus:border-accent-teal focus:ring-1 focus:ring-accent-teal"
+                  />
+                </div>
+                <div>
+                  <label className="block text-gray-300 mb-2">Country</label>
+                  <input
+                    type="text"
+                    value={formData.country}
+                    onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
+                    required
+                    className="w-full bg-haunted-dark text-gray-300 rounded-md border border-gray-700 p-3 focus:outline-none focus:border-accent-teal focus:ring-1 focus:ring-accent-teal"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Images */}
+            <div>
+              <label className="block text-gray-300 mb-2">Location Photos</label>
+              <div className="relative">
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                  id="image-upload"
+                  disabled={uploading}
+                />
+                <label
+                  htmlFor="image-upload"
+                  className="flex items-center justify-center gap-2 bg-haunted-dark text-gray-300 rounded-md border border-gray-700 p-3 cursor-pointer hover:border-accent-teal transition-colors"
+                >
+                  <FaCamera className="w-5 h-5" />
+                  Upload Photos
+                </label>
+              </div>
+
+              {uploading && (
+                <p className="text-sm text-gray-400 mt-2">Uploading images...</p>
+              )}
+
+              {previewImages.length > 0 && (
+                <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {previewImages.map((preview, index) => (
+                    <div key={index} className="relative aspect-square">
+                      <Image
+                        src={preview}
+                        alt={`Preview ${index + 1}`}
+                        fill
+                        className="object-cover rounded-lg"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 transition-colors"
+                      >
+                        <FaTimes className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {error && (
+              <p className="text-accent-rust">{error}</p>
+            )}
+
+            <div className="flex justify-end gap-4">
+              <button
+                type="button"
+                onClick={() => router.back()}
+                className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={uploading}
+                className="bg-accent-teal hover:bg-accent-teal/80 text-gray-900 px-6 py-2 rounded-md transition-colors disabled:opacity-50"
+              >
+                Submit Location
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   );
 }

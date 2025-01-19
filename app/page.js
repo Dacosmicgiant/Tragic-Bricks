@@ -1,101 +1,116 @@
-import Image from "next/image";
+'use client';
+
+import LocationCard from '@/components/LocationCard';
+import { FaGhost, FaBuilding, FaStar, FaClock } from 'react-icons/fa';
+import Image from 'next/image';
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="min-h-screen bg-haunted-dark">
+      {/* Hero Section */}
+      <section className="relative min-h-screen flex items-center justify-center">
+        {/* Background Image with Overlay */}
+        <div className="absolute inset-0 z-0">
+          <Image
+            src="/images/hero-bg.jpg"
+            alt="Haunted mansion"
+            fill
+            className="object-cover"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-haunted-dark/90 via-haunted-dark/70 to-haunted-dark"></div>
+        </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        {/* Hero Content */}
+        <div className="relative z-20 text-center max-w-4xl mx-auto px-4">
+          <h1 className="font-serif text-5xl md:text-7xl text-white mb-6 animate-fade-down">
+            Discover the Untold Stories
+          </h1>
+          <p className="text-xl text-gray-300 mb-8 animate-fade-up">
+            Explore haunted locations and abandoned places with a community of urban explorers
+          </p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <a
+              href="/locations/submit"
+              className="bg-accent-teal hover:bg-accent-teal/80 text-gray-900 px-6 py-3 rounded-md font-medium transition-colors"
+            >
+              Submit a Location
+            </a>
+            <a
+              href="/locations"
+              className="border border-accent-teal text-accent-teal hover:bg-accent-teal/10 px-6 py-3 rounded-md font-medium transition-colors"
+            >
+              Explore Places
+            </a>
+          </div>
+        </div>
+
+        {/* Scroll Indicator */}
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
+          <svg
+            className="w-6 h-6 text-gray-400"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
+            <path d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
+          </svg>
+        </div>
+      </section>
+
+      {/* Categories Section */}
+      <section className="py-16 bg-haunted-light">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="font-serif text-3xl text-white mb-12 text-center">Explore by Category</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            {[
+              { icon: FaGhost, title: 'Haunted', count: '157+', link: '/locations?type=haunted' },
+              { icon: FaBuilding, title: 'Abandoned', count: '243+', link: '/locations?type=abandoned' },
+              { icon: FaStar, title: 'Most Reviewed', count: 'Top 50', link: '/locations?sort=reviews' },
+              { icon: FaClock, title: 'Recently Added', count: 'New', link: '/locations?sort=recent' },
+            ].map((category) => (
+              <a
+                key={category.title}
+                href={category.link}
+                className="group bg-haunted-dark p-6 rounded-lg hover:bg-primary-900 transition-colors"
+              >
+                <category.icon className="h-8 w-8 text-accent-teal mb-4 group-hover:animate-ghost-float" />
+                <h3 className="text-xl text-white mb-2">{category.title}</h3>
+                <p className="text-gray-400">{category.count} locations</p>
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Locations */}
+      <section className="py-16 bg-haunted-dark">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="font-serif text-3xl text-white mb-12 text-center">Featured Locations</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Location cards will be dynamically populated here */}
+          </div>
+        </div>
+      </section>
+
+      {/* Community Section */}
+      <section className="py-16 bg-gradient-to-b from-haunted-dark to-haunted-light">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="font-serif text-3xl text-white mb-8">Join Our Community</h2>
+          <p className="text-gray-300 mb-8 max-w-2xl mx-auto">
+            Connect with fellow explorers, share your experiences, and discover the mysteries that await.
+          </p>
           <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/register"
+            className="inline-block bg-accent-teal hover:bg-accent-teal/80 text-gray-900 px-8 py-4 rounded-md font-medium transition-colors"
           >
-            Read our docs
+            Get Started Today
           </a>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
     </div>
   );
 }
